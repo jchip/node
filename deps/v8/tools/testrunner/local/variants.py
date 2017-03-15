@@ -10,9 +10,8 @@ ALL_VARIANT_FLAGS = {
   "turbofan_opt": [["--turbo", "--always-opt"]],
   "noturbofan": [["--no-turbo"]],
   "noturbofan_stress": [["--no-turbo", "--stress-opt", "--always-opt"]],
-  "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition"]],
-  "ignition_turbofan": [["--ignition-staging", "--turbo"]],
+  "fullcode": [["--nocrankshaft", "--no-turbo"]],
+  "nooptimization": [["--nocrankshaft", "--turbo-filter=~"]],
   "asm_wasm": [["--validate-asm"]],
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
@@ -24,14 +23,12 @@ FAST_VARIANT_FLAGS = {
   "turbofan": [["--turbo"]],
   "noturbofan": [["--no-turbo"]],
   "noturbofan_stress": [["--no-turbo", "--stress-opt"]],
-  "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition"]],
-  "ignition_turbofan": [["--ignition-staging", "--turbo"]],
+  "fullcode": [["--nocrankshaft", "--no-turbo"]],
+  "nooptimization": [["--nocrankshaft", "--turbo-filter=~"]],
   "asm_wasm": [["--validate-asm"]],
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
 ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
-                    "noturbofan", "noturbofan_stress",
-                    "nocrankshaft", "ignition",
-                    "ignition_turbofan", "asm_wasm", "wasm_traps"])
+                    "noturbofan", "noturbofan_stress", "fullcode",
+                    "nooptimization", "asm_wasm", "wasm_traps"])

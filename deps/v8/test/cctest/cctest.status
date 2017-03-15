@@ -185,6 +185,10 @@
   'test-api/FastReturnValues*': [PASS, SLOW],
   'test-decls/CrossScriptReferences_Simple2': [PASS, SLOW],
 }],  # 'no_snap == True'
+['no_snap == False', {
+  # FunctionEntryHooks require bootstrapping from scratch.
+  'test-api/SetFunctionEntryHook': [SKIP],
+}],  # 'no_snap == False'
 
 ##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
@@ -362,10 +366,10 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == turbofan or variant == ignition_turbofan', {
+['variant == turbofan', {
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-}],  # variant == turbofan or variant == ignition_turbofan
+}],  # variant == turbofan
 
 ##############################################################################
 ['variant == asm_wasm', {

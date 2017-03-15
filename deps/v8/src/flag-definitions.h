@@ -268,14 +268,9 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "not-too-far future")
 DEFINE_IMPLICATION(future, turbo)
 
-DEFINE_DUAL_IMPLICATION(turbo, ignition_staging)
+DEFINE_DUAL_IMPLICATION(turbo, ignition)
 DEFINE_DUAL_IMPLICATION(turbo, enable_fast_array_builtins)
 DEFINE_DUAL_IMPLICATION(turbo, thin_strings)
-
-// TODO(rmcilroy): Remove ignition-staging and set these implications directly
-// with the turbo flag.
-DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
-DEFINE_DUAL_IMPLICATION(ignition_staging, ignition)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
@@ -588,6 +583,8 @@ DEFINE_BOOL(wasm_trap_if, true,
 DEFINE_BOOL(wasm_code_fuzzer_gen_test, false,
             "Generate a test case when running the wasm-code fuzzer")
 DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
+DEFINE_BOOL(wasm_interpret_all, false,
+            "Execute all wasm code in the wasm interpreter")
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
@@ -913,6 +910,10 @@ DEFINE_BOOL(trace_for_in_enumerate, false, "Trace for-in enumerate slow-paths")
 #if TRACE_MAPS
 DEFINE_BOOL(trace_maps, false, "trace map creation")
 #endif
+
+// preparser.cc
+DEFINE_BOOL(use_parse_tasks, false, "use parse tasks")
+DEFINE_BOOL(trace_parse_tasks, false, "trace parse task creation")
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
@@ -1274,6 +1275,7 @@ DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded, parallel_compaction)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_store_buffer)
+DEFINE_NEG_IMPLICATION(single_threaded, compiler_dispatcher)
 
 #undef FLAG
 
