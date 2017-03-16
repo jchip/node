@@ -49,7 +49,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
 
-bool CpuFeatures::SupportsSimd128() { return false; }
+bool CpuFeatures::SupportsWasmSimd128() { return false; }
 
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
@@ -335,9 +335,9 @@ void RelocInfo::set_debug_call_address(Address target) {
   // sequence.
   Assembler::set_target_address_at(isolate_, pc_, host_, target);
   if (host() != NULL) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
   }
 }
 

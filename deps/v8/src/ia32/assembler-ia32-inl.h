@@ -48,7 +48,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
-bool CpuFeatures::SupportsSimd128() { return true; }
+bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 
 static const byte kCallOpcode = 0xE8;
 static const int kNoCodeAgeSequenceLength = 5;
@@ -226,9 +226,9 @@ void RelocInfo::set_debug_call_address(Address target) {
   Address location = pc_ + Assembler::kPatchDebugBreakSlotAddressOffset;
   Assembler::set_target_address_at(isolate_, location, host_, target);
   if (host() != NULL) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
   }
 }
 

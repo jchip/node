@@ -17,7 +17,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
-bool CpuFeatures::SupportsSimd128() { return true; }
+bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
@@ -514,9 +514,9 @@ void RelocInfo::set_debug_call_address(Address target) {
                          pc_ + Assembler::kPatchDebugBreakSlotAddressOffset,
                          sizeof(Address));
   if (host() != NULL) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
   }
 }
 

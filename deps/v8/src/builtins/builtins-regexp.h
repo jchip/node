@@ -33,6 +33,18 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void StoreLastIndex(Node* context, Node* regexp, Node* value,
                       bool is_fastpath);
 
+  // Loads {var_string_start} and {var_string_end} with the corresponding
+  // offsets into the given {string_data}.
+  void GetStringPointers(Node* const string_data, Node* const offset,
+                         Node* const last_index, Node* const string_length,
+                         String::Encoding encoding, Variable* var_string_start,
+                         Variable* var_string_end);
+
+  // Low level logic around the actual call into generated Irregexp code.
+  Node* IrregexpExec(Node* const context, Node* const regexp,
+                     Node* const string, Node* const last_index,
+                     Node* const match_info);
+
   Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
                                         Node* const match_info,
                                         Node* const string);

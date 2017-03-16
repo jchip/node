@@ -454,8 +454,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Goto(&has_length);
     Bind(&not_js_array);
     Node* len_property =
-        CallStub(CodeFactory::GetProperty(isolate()), context, o,
-                 HeapConstant(isolate()->factory()->length_string()));
+        GetProperty(context, o, isolate()->factory()->length_string());
     merged_length.Bind(
         CallStub(CodeFactory::ToLength(isolate()), context, len_property));
     Goto(&has_length);
@@ -521,8 +520,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
         // i. Let kValue be Get(O, Pk).
         // ii. ReturnIfAbrupt(kValue).
-        Node* k_value = CallStub(CodeFactory::GetProperty(isolate()), context,
-                                 o, k.value());
+        Node* k_value = GetProperty(context, o, k.value());
 
         // iii. Let funcResult be Call(callbackfn, T, «kValue, k, O»).
         // iv. ReturnIfAbrupt(funcResult).
@@ -2048,33 +2046,28 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
 
   Bind(&init_k);
   {
-    Label done(this), init_k_smi(this), init_k_heap_num(this),
-        init_k_zero(this), init_k_n(this);
-    Node* tagged_n = ToInteger(context, start_from);
-
-    Branch(TaggedIsSmi(tagged_n), &init_k_smi, &init_k_heap_num);
+    // For now only deal with undefined and Smis here; we must be really careful
+    // with side-effects from the ToInteger conversion as the side-effects might
+    // render our assumptions about the receiver being a fast JSArray and the
+    // length invalid.
+    Label done(this), init_k_smi(this), init_k_other(this), init_k_zero(this),
+        init_k_n(this);
+    Branch(TaggedIsSmi(start_from), &init_k_smi, &init_k_other);
 
     Bind(&init_k_smi);
     {
-      start_from_var.Bind(SmiUntag(tagged_n));
+      // The fromIndex is a Smi.
+      start_from_var.Bind(SmiUntag(start_from));
       Goto(&init_k_n);
     }
 
-    Bind(&init_k_heap_num);
+    Bind(&init_k_other);
     {
-      Label do_return_not_found(this);
-      // This round is lossless for all valid lengths.
-      Node* fp_len = RoundIntPtrToFloat64(len_var.value());
-      Node* fp_n = LoadHeapNumberValue(tagged_n);
-      GotoIf(Float64GreaterThanOrEqual(fp_n, fp_len), &do_return_not_found);
-      start_from_var.Bind(ChangeInt32ToIntPtr(TruncateFloat64ToWord32(fp_n)));
+      // The fromIndex must be undefined then, otherwise bailout and let the
+      // runtime deal with the full ToInteger conversion.
+      GotoIfNot(IsUndefined(start_from), &call_runtime);
+      start_from_var.Bind(intptr_zero);
       Goto(&init_k_n);
-
-      Bind(&do_return_not_found);
-      {
-        index_var.Bind(intptr_zero);
-        Goto(&return_not_found);
-      }
     }
 
     Bind(&init_k_n);
@@ -2525,9 +2518,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
         Bind(&if_isnotarray);
         {
-          Node* length_string = HeapConstant(factory()->length_string());
-          Callable get_property = CodeFactory::GetProperty(isolate());
-          Node* length = CallStub(get_property, context, array, length_string);
+          Node* length =
+              GetProperty(context, array, factory()->length_string());
           Callable to_length = CodeFactory::ToLength(isolate());
           var_length.Bind(CallStub(to_length, context, length));
           Goto(&done);
@@ -2550,8 +2542,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
       Bind(&generic_values);
       {
-        Callable get_property = CodeFactory::GetProperty(isolate());
-        var_value.Bind(CallStub(get_property, context, array, index));
+        var_value.Bind(GetProperty(context, array, index));
         Goto(&allocate_entry_if_needed);
       }
     }

@@ -48,7 +48,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
-bool CpuFeatures::SupportsSimd128() { return true; }
+bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(NEON); }
 
 int DoubleRegister::NumRegisters() {
   return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
@@ -219,9 +219,9 @@ void RelocInfo::set_debug_call_address(Address target) {
   Memory::Address_at(pc_ + Assembler::kPatchDebugBreakSlotAddressOffset) =
       target;
   if (host() != NULL) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
   }
 }
 
