@@ -4,6 +4,8 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const childProcess = require('child_process');
+const fs = require('fs');
+const os = require('os');
 
 // Refs: https://github.com/nodejs/node/pull/2253
 if (common.isSunOS) {
@@ -12,6 +14,8 @@ if (common.isSunOS) {
 }
 
 const nodeBinary = process.argv[0];
+const globalLibDir = path.join(nodeBinary, '../../lib');
+const globalNmDir = path.join(globalLibDir, 'node_modules');
 
 const preloadOption = function(preloads) {
   let option = '';
@@ -25,11 +29,20 @@ const fixture = function(name) {
   return path.join(common.fixturesDir, name);
 };
 
+const globalNmFixture = function(name) {
+  return path.join(globalNmDir, name);
+};
+
 const fixtureA = fixture('printA.js');
 const fixtureB = fixture('printB.js');
 const fixtureC = fixture('printC.js');
 const fixtureD = fixture('define-global.js');
 const fixtureThrows = fixture('throws_error4.js');
+
+const globalNmFixtureA = globalNmFixture('printA.js');
+const globalNmFixtureB = globalNmFixture('printB.js');
+const globalNmFixtureC = globalNmFixture('printC.js');
+const globalNmFixtureThrows = globalNmFixture('throws_error4.js');
 
 // test preloading a single module works
 childProcess.exec(nodeBinary + ' ' + preloadOption([fixtureA]) + ' ' + fixtureB,
@@ -146,3 +159,165 @@ childProcess.exec(
     assert.ok(/worker terminated with code 43/.test(stdout));
   }
 );
+
+//
+// Test preloadrc
+//
+let preloadTestsCount = 0;
+let savedRc;
+
+const copyFixturesToGlobalNm = function() {
+  try {
+    fs.mkdirSync(globalLibDir);
+    fs.mkdirSync(globalNmDir);
+  } catch (e) {
+  }
+  fs.writeFileSync(globalNmFixtureA, fs.readFileSync(fixtureA));
+  fs.writeFileSync(globalNmFixtureB, fs.readFileSync(fixtureB));
+  fs.writeFileSync(globalNmFixtureC, fs.readFileSync(fixtureC));
+  fs.writeFileSync(globalNmFixtureThrows, fs.readFileSync(fixtureThrows));
+};
+
+const cleanGlobalNmFixtures = function() {
+  preloadTestsCount--;
+  if (preloadTestsCount > 0) {
+    return;
+  }
+
+  fs.unlinkSync(globalNmFixtureA);
+  fs.unlinkSync(globalNmFixtureB);
+  fs.unlinkSync(globalNmFixtureC);
+  fs.unlinkSync(globalNmFixtureThrows);
+
+  try {
+    fs.rmdirSync(globalNmDir);
+    fs.rmdirSync(globalLibDir);
+  } catch (e) {
+  }
+};
+
+const rcFile = path.join(os.homedir(), '.node_preloadrc');
+
+const restorePreloadRc = function() {
+  if (savedRc) {
+    fs.writeFileSync(rcFile, savedRc);
+    savedRc = undefined;
+  } else {
+    fs.unlinkSync(rcFile);
+  }
+};
+
+const updatePreloadRc = function(modules) {
+  if (fs.existsSync(rcFile)) {
+    savedRc = fs.readFileSync(rcFile);
+  }
+  const rc = modules.reduce((a, m) => `${a}${m}\n`, '');
+  fs.writeFileSync(rcFile, rc);
+};
+
+// test preloadrc with a single module works
+const nodePreloadTests = [
+  function(cleanCb, next) {
+    updatePreloadRc([globalNmFixtureA]);
+    childProcess.exec(nodeBinary + ' ' + fixtureB,
+                      function(err, stdout, stderr) {
+                        cleanCb();
+                        assert.ifError(err);
+                        assert.strictEqual(stdout, 'A\nB\n');
+                        next();
+                      });
+  },
+
+  // test preloadrc with a relative module works
+  function(cleanCb, next) {
+    updatePreloadRc(['printA']);
+    childProcess.exec(nodeBinary + ' ' + fixtureB,
+                      function(err, stdout, stderr) {
+                        cleanCb();
+                        assert.ifError(err);
+                        assert.strictEqual(stdout, 'A\nB\n');
+                        next();
+                      });
+  },
+
+  // test preloadrc with multiple modules works
+  function(cleanCb, next) {
+    updatePreloadRc([globalNmFixtureA, globalNmFixtureB]);
+    childProcess.exec(
+      nodeBinary + ' ' + fixtureC,
+      function(err, stdout, stderr) {
+        cleanCb();
+        assert.ifError(err);
+        assert.strictEqual(stdout, 'A\nB\nC\n');
+        next();
+      }
+    );
+  },
+
+  // test preloadrc with a throwing module aborts
+  function(cleanCb, next) {
+    updatePreloadRc([globalNmFixtureA, globalNmFixtureThrows]);
+    childProcess.exec(
+      nodeBinary + ' ' + fixtureB,
+      function(err, stdout, stderr) {
+        cleanCb();
+        if (err) {
+          assert.strictEqual(stdout, 'A\n');
+          next();
+        } else {
+          throw new Error('preloadrc Preload should have failed');
+        }
+      }
+    );
+  },
+
+  // test mixing preloadrc with -r works
+  function(cleanCb, next) {
+    updatePreloadRc([globalNmFixtureB]);
+    childProcess.exec(
+      nodeBinary + ' ' + preloadOption([fixtureA]) + ' ' + fixtureC,
+      function(err, stdout, stderr) {
+        cleanCb();
+        assert.ifError(err);
+        assert.strictEqual(stdout, 'A\nB\nC\n');
+        next();
+      }
+    );
+  },
+
+  // test ignoring preloadrc modules not under global node_modules works
+  function(cleanCb, next) {
+    updatePreloadRc([globalNmFixtureA, fixtureB]);
+    childProcess.exec(
+      nodeBinary + ' ' + fixtureC,
+      function(err, stdout, stderr) {
+        cleanCb();
+        assert.ifError(err);
+        assert.strictEqual(stdout, 'A\nC\n');
+        next();
+      }
+    );
+  }
+];
+
+
+const runPreloadTest = function() {
+  let i = 0;
+  copyFixturesToGlobalNm();
+  const runNextTest = function() {
+    if (i >= nodePreloadTests.length) {
+      cleanGlobalNmFixtures();
+      delete process.env.NODE_PRELOADRC_ENABLE;
+    } else {
+      process.env.NODE_PRELOADRC_ENABLE = 'true';
+      nodePreloadTests[i](restorePreloadRc, () => {
+        i++;
+        runNextTest();
+      });
+    }
+  };
+
+  runNextTest();
+};
+
+runPreloadTest();
