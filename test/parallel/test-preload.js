@@ -146,3 +146,46 @@ childProcess.exec(
     assert.ok(/worker terminated with code 43/.test(stdout));
   }
 );
+
+// test NODE_REQUIRE with a single module works
+process.env.NODE_REQUIRE = fixtureA;
+childProcess.exec(nodeBinary + ' ' + fixtureB,
+                  function(err, stdout, stderr) {
+                    assert.ifError(err);
+                    assert.strictEqual(stdout, 'A\nB\n');
+                  });
+
+// test NODE_REQUIRE with multiple modules works
+process.env.NODE_REQUIRE = fixtureA + path.delimiter + fixtureB;
+childProcess.exec(
+  nodeBinary + ' ' + fixtureC,
+  function(err, stdout, stderr) {
+    assert.ifError(err);
+    assert.strictEqual(stdout, 'A\nB\nC\n');
+  }
+);
+
+// test NODE_REQUIRE with a throwing module aborts
+process.env.NODE_REQUIRE = fixtureA + path.delimiter + fixtureThrows;
+childProcess.exec(
+  nodeBinary + ' ' + fixtureB,
+  function(err, stdout, stderr) {
+    if (err) {
+      assert.strictEqual(stdout, 'A\n');
+    } else {
+      throw new Error('NODE_REQUIRE Preload should have failed');
+    }
+  }
+);
+
+// test mixing NODE_REQUIRE with -r works
+process.env.NODE_REQUIRE = fixtureB;
+childProcess.exec(
+  nodeBinary + ' ' + preloadOption([fixtureA]) + ' ' + fixtureC,
+  function(err, stdout, stderr) {
+    assert.ifError(err);
+    assert.strictEqual(stdout, 'A\nB\nC\n');
+  }
+);
+
+delete process.env.NODE_REQUIRE;
